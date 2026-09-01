@@ -1,0 +1,85 @@
+🛠️ Step 1 — Planning & Requirements
+Define use cases: Candidate registration, resume upload, recruiter job posting, AI resume analysis, candidate-job matching.
+
+Sketch wireframes: Candidate dashboard, recruiter dashboard, admin panel.
+
+Draft ER diagram: Entities like User, Candidate, Recruiter, Job, Application, Resume, Assessment.
+
+🛠️ Step 2 — Backend Setup
+Learn/refresh Java + Spring Boot basics:
+
+REST APIs
+
+Authentication (JWT)
+
+Role-based authorization
+
+Set up PostgreSQL database with tables for users, jobs, resumes, applications.
+
+Build core APIs:
+
+/api/auth/register, /api/auth/login
+
+/api/jobs, /api/jobs/{id}/apply
+
+/api/resumes/upload
+
+🛠️ Step 3 — Frontend Setup
+Use React + TypeScript:
+
+Candidate dashboard (profile, resume upload, job search).
+
+Recruiter dashboard (job creation, applications view).
+
+Integrate APIs with frontend forms and tables.
+
+Add authentication flow (login, logout, role-based views).
+
+🛠️ Step 4 — AI Integration
+Start simple: Resume parsing with Python (PDF → text → structured JSON).
+
+Connect to an LLM API (OpenAI/Claude/Gemini):
+
+Prompt: “Extract technical skills from this resume and compare with job requirements.”
+
+Add matching score logic (rule-based + embeddings).
+
+Later: AI interview Q&A generation, candidate evaluation.
+
+🛠️ Step 5 — Recruiter Workflow
+Build Kanban-style pipeline: Applied → Screening → Assessment → Interview → Selected/Rejected.
+
+Add recruiter analytics: number of applications, shortlist rate, interview conversion.
+
+🛠️ Step 6 — Security & Deployment
+Implement:
+
+Password hashing
+
+File validation (resume PDFs)
+
+Rate limiting
+
+Audit logs
+
+Containerize with Docker.
+
+Deploy on AWS (frontend hosting, backend in Docker, PostgreSQL managed DB).
+
+🛠️ Step 7 — Iterative Expansion
+MVP: Candidate registration, resume upload, job posting, basic matching.
+
+Version 2: AI interview, MCQ assessments, recruiter analytics.
+
+Version 3: RAG embeddings, coding assessments, voice interviews, CI/CD pipeline.
+
+🎯 How to Begin Practically
+Set up GitHub repo with folders: frontend/, backend/, ai-service/, database/.
+
+Start with backend authentication (Spring Boot + PostgreSQL).
+
+Build candidate profile + resume upload.
+
+Add recruiter job posting.
+
+Integrate AI resume analysis as your first AI feature.
