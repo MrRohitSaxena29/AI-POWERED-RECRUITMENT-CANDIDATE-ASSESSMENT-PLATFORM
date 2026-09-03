@@ -4,7 +4,8 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
+const container = document.getElementById('root') || document.getElementById('app') || document.body;
+const root = ReactDOM.createRoot(container);
 root.render(
   <React.StrictMode>
     <App />
