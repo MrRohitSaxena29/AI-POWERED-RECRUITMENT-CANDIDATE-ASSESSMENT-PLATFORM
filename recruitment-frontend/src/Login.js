@@ -43,10 +43,17 @@ function Login() {
         redirectToDashboard(userRole);
       }
     } catch (err) {
-      console.error(err);
-      const msg =
-        err.response?.data?.message ||
-        (isRegister ? "Registration failed. Try a different email." : "Invalid email or password.");
+      console.error("Auth error details:", err);
+      let msg = err.response?.data?.message;
+      if (!msg) {
+        if (!err.response) {
+          msg = "Cannot reach backend server. Please verify it is running on port 8080.";
+        } else if (isRegister) {
+          msg = "Registration failed. Try a different email.";
+        } else {
+          msg = "Invalid email or password.";
+        }
+      }
       setError(msg);
     } finally {
       setLoading(false);

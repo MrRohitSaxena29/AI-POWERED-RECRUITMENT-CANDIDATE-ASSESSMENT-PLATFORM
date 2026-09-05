@@ -1,8 +1,0 @@
-Think about who will use the system and what they need to do:
-
-
-	Candidate: Register, upload resume, search/apply for jobs, take assessments, track status.
-
-	Recruiter/HR: Create job postings, view applicants, shortlist, schedule interviews, analyze resumes.
-
-	Admin: Manage users, companies, audit logs, monitor suspicious activity.

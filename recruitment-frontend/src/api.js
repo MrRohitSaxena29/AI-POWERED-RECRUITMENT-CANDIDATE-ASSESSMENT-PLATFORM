@@ -1,9 +1,23 @@
 import axios from "axios";
 
-const BASE_URL = process.env.REACT_APP_BASE_URL || "http://localhost:8080";
+// If loaded in browser on dev server with proxy, relative URL /api avoids all CORS/port issues.
+// Otherwise fallback to explicit host.
+const getBaseUrl = () => {
+  if (process.env.REACT_APP_BASE_URL) {
+    return `${process.env.REACT_APP_BASE_URL}/api`;
+  }
+  // If running on browser, relative path /api triggers webpack dev-server proxy automatically
+  if (typeof window !== "undefined" && window.location) {
+    return "/api";
+  }
+  return "http://localhost:8080/api";
+};
 
 const api = axios.create({
-  baseURL: `${BASE_URL}/api`,
+  baseURL: getBaseUrl(),
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
 // Attach JWT token to all requests if present

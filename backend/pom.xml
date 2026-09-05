@@ -73,7 +73,7 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Apache PDFBox for Resume PDF Parsing -->
+        <!-- Apache PDFBox for Resume Parsing -->
         <dependency>
             <groupId>org.apache.pdfbox</groupId>
             <artifactId>pdfbox</artifactId>

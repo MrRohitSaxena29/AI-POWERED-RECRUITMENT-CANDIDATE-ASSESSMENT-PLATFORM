@@ -24,7 +24,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/resumes")
-@CrossOrigin(origins = {"http://localhost:3000", "http://10.118.127.53:3000"}, allowCredentials = "true")
+@CrossOrigin(originPatterns = "*", allowCredentials = "true")
 public class ResumeController {
 
     private final FileStorageService fileStorageService;

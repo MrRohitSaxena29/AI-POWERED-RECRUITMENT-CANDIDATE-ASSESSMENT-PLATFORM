@@ -24,7 +24,7 @@ import com.example.app.repository.UserRepository;
 
 @RestController
 @RequestMapping("/api/candidate")
-@CrossOrigin(origins = {"http://localhost:3000", "http://10.118.127.53:3000"}, allowCredentials = "true")
+@CrossOrigin(originPatterns = "*", allowCredentials = "true")
 public class CandidateProfileController {
 
     private final CandidateRepository candidateRepository;
