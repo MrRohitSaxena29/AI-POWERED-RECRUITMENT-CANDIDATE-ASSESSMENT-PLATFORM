@@ -15,6 +15,8 @@ function RecruiterDashboard() {
   const [analyzingAppId, setAnalyzingAppId] = useState(null);
   const [generatingQuestionsAppId, setGeneratingQuestionsAppId] = useState(null);
   const [interviewQuestions, setInterviewQuestions] = useState([]);
+  const [interviews, setInterviews] = useState([]);
+  const [viewingLogsInterview, setViewingLogsInterview] = useState(null);
 
   // New Job Modal state
   const [isJobModalOpen, setIsJobModalOpen] = useState(false);
@@ -35,12 +37,14 @@ function RecruiterDashboard() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [appsRes, jobsRes] = await Promise.all([
+      const [appsRes, jobsRes, interviewsRes] = await Promise.all([
         api.get("/applications"),
         api.get("/jobs"),
+        api.get("/interviews/all").catch(() => ({ data: [] })),
       ]);
       setApplications(appsRes.data || []);
       setJobs(jobsRes.data || []);
+      setInterviews(interviewsRes.data || []);
     } catch (err) {
       console.error("Failed to load recruiter data:", err);
       showToast("Error loading applications or jobs", "error");
@@ -101,6 +105,28 @@ function RecruiterDashboard() {
       showToast("Failed to generate interview questions", "error");
     } finally {
       setGeneratingQuestionsAppId(null);
+    }
+  };
+
+  // Force cancel an interview under ACSS recruiter override
+  const handleForceCancelInterview = async (interviewId) => {
+    try {
+      await api.post(`/interviews/${interviewId}/cancel`, {
+        reason: "Recruiter manual security intervention"
+      });
+      showToast("Interview cancelled by recruiter!");
+      fetchData();
+      if (viewingLogsInterview && viewingLogsInterview.id === interviewId) {
+        setViewingLogsInterview((prev) => ({
+          ...prev,
+          status: "Cancelled",
+          flaggedCheating: true,
+          cheatingLogs: (prev.cheatingLogs || "") + `[${new Date().toISOString()}] CANCELLED BY RECRUITER.\n`
+        }));
+      }
+    } catch (err) {
+      console.error("Failed to force-cancel interview:", err);
+      showToast("Failed to cancel interview", "error");
     }
   };
 
@@ -307,6 +333,7 @@ function RecruiterDashboard() {
                         <th className="p-4 font-semibold">Candidate</th>
                         <th className="p-4 font-semibold">Applied Position</th>
                         <th className="p-4 font-semibold">Current Stage</th>
+                        <th className="p-4 font-semibold">ACSS Proctoring</th>
                         <th className="p-4 font-semibold">AI Match / Score</th>
                         <th className="p-4 font-semibold">Applied Date</th>
                         <th className="p-4 font-semibold text-right">Actions</th>
@@ -315,13 +342,13 @@ function RecruiterDashboard() {
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                       {loading ? (
                         <tr>
-                          <td colSpan="6" className="p-8 text-center text-slate-500">
+                          <td colSpan="7" className="p-8 text-center text-slate-500">
                             Loading talent pipeline...
                           </td>
                         </tr>
                       ) : filteredApps.length === 0 ? (
                         <tr>
-                          <td colSpan="6" className="p-8 text-center text-slate-400">
+                          <td colSpan="7" className="p-8 text-center text-slate-400">
                             No candidates found matching your criteria.
                           </td>
                         </tr>
@@ -333,6 +360,9 @@ function RecruiterDashboard() {
                             app.candidate?.user?.email || "candidate@recruitment.com";
                           const jobTitle = app.jobTitle || app.job?.title || "Engineering Role";
                           const company = app.company || app.job?.company?.name || "Apex AI";
+                          const matchingInterview = interviews.find(
+                            (i) => i.application?.id === app.id || i.applicationId === app.id
+                          );
 
                           return (
                             <tr
@@ -369,6 +399,8 @@ function RecruiterDashboard() {
                                       ? "bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/40 dark:text-blue-400"
                                       : app.status === "Interview Scheduled"
                                       ? "bg-purple-50 text-purple-700 border-purple-300 dark:bg-purple-950/40 dark:text-purple-400"
+                                      : app.status === "Interview Cancelled (Cheating Detected)"
+                                      ? "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/60 dark:text-rose-300 font-bold"
                                       : app.status === "Rejected"
                                       ? "bg-rose-50 text-rose-700 border-rose-300 dark:bg-rose-950/40 dark:text-rose-400"
                                       : "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300"
@@ -381,6 +413,29 @@ function RecruiterDashboard() {
                                   <option value="Accepted">Accepted</option>
                                   <option value="Rejected">Rejected</option>
                                 </select>
+                              </td>
+                              <td className="p-4">
+                                {matchingInterview ? (
+                                  matchingInterview.flaggedCheating || (matchingInterview.violationsCount && matchingInterview.violationsCount >= 2) ? (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-300">
+                                      🚫 Cheating ({matchingInterview.violationsCount}v)
+                                    </span>
+                                  ) : matchingInterview.violationsCount === 1 ? (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-300">
+                                      ⚠️ Warning (1v)
+                                    </span>
+                                  ) : matchingInterview.status === "Completed" ? (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300">
+                                      ✅ Clean Session
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                                      Proctored ({matchingInterview.status || "Ready"})
+                                    </span>
+                                  )
+                                ) : (
+                                  <span className="text-xs text-slate-400">Not Scheduled</span>
+                                )}
                               </td>
                               <td className="p-4">
                                 {app.aiReport ? (
@@ -405,6 +460,15 @@ function RecruiterDashboard() {
                               </td>
                               <td className="p-4 text-right">
                                 <div className="inline-flex items-center gap-2">
+                                  {matchingInterview && (
+                                    <button
+                                      onClick={() => setViewingLogsInterview(matchingInterview)}
+                                      className="px-2.5 py-1.5 text-xs font-semibold bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 text-purple-700 dark:text-purple-300 rounded-lg transition border border-purple-200 dark:border-purple-800/50 inline-flex items-center gap-1"
+                                      title="View ACSS Anti-Cheating Surveillance Logs"
+                                    >
+                                      🛡️ ACSS Logs
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() => handleAnalyzeApp(app.id)}
                                     disabled={analyzingAppId === app.id}
@@ -806,6 +870,128 @@ function RecruiterDashboard() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* ACSS Anti-Cheating Surveillance Logs Modal */}
+        {viewingLogsInterview && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-5 anim-scale-up">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center text-lg shadow-md shadow-purple-500/30">
+                    🛡️
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                      ACSS Anti-Cheating Audit Log
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      Interview ID #{viewingLogsInterview.id} • Candidate: {viewingLogsInterview.application?.candidate?.user?.email || "Candidate"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setViewingLogsInterview(null)}
+                  className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Status Overview Cards */}
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Session Status</span>
+                  <span className={`text-xs font-bold mt-1 inline-block ${
+                    viewingLogsInterview.status === "Cancelled"
+                      ? "text-rose-600 dark:text-rose-400"
+                      : viewingLogsInterview.status === "Completed"
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-blue-600 dark:text-blue-400"
+                  }`}>
+                    {viewingLogsInterview.status || "Scheduled"}
+                  </span>
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Violations Count</span>
+                  <span className={`text-sm font-black mt-1 inline-block ${
+                    (viewingLogsInterview.violationsCount || 0) >= 2
+                      ? "text-rose-600 dark:text-rose-400"
+                      : (viewingLogsInterview.violationsCount || 0) === 1
+                      ? "text-amber-600 dark:text-amber-400"
+                      : "text-slate-700 dark:text-slate-300"
+                  }`}>
+                    {viewingLogsInterview.violationsCount || 0} / 2
+                  </span>
+                </div>
+
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Cheating Flag</span>
+                  <span className={`text-xs font-bold mt-1 inline-block ${
+                    viewingLogsInterview.flaggedCheating
+                      ? "text-rose-600 dark:text-rose-400"
+                      : "text-emerald-600 dark:text-emerald-400"
+                  }`}>
+                    {viewingLogsInterview.flaggedCheating ? "🚫 FLAGGED" : "🟢 VERIFIED"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Terminal-style Audit Feed */}
+              <div>
+                <span className="text-xs font-bold text-slate-500 uppercase mb-2 block">
+                  Proctoring Event History:
+                </span>
+                <div className="p-4 rounded-2xl bg-slate-950 text-slate-200 font-mono text-xs max-h-56 overflow-y-auto border border-slate-800 shadow-inner space-y-1">
+                  {viewingLogsInterview.cheatingLogs ? (
+                    viewingLogsInterview.cheatingLogs.split("\n").filter(Boolean).map((line, idx) => (
+                      <div
+                        key={idx}
+                        className={
+                          line.includes("AUTO-CANCELLED") || line.includes("Violation") || line.includes("CANCELLED BY RECRUITER")
+                            ? "text-rose-400"
+                            : line.includes("started")
+                            ? "text-emerald-400"
+                            : line.includes("completed")
+                            ? "text-blue-400"
+                            : "text-slate-300"
+                        }
+                      >
+                        {line}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-slate-500 italic">No events or violations recorded yet.</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+                {viewingLogsInterview.status !== "Cancelled" ? (
+                  <button
+                    onClick={() => handleForceCancelInterview(viewingLogsInterview.id)}
+                    className="px-4 py-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 hover:bg-rose-100 border border-rose-200 dark:border-rose-900/50 text-xs font-bold transition flex items-center gap-1.5"
+                  >
+                    <span>Force Terminate Interview</span>
+                    <span>🚫</span>
+                  </button>
+                ) : (
+                  <span className="text-xs text-rose-500 font-semibold">
+                    Session already terminated.
+                  </span>
+                )}
+
+                <button
+                  onClick={() => setViewingLogsInterview(null)}
+                  className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900 text-xs font-bold transition ml-auto"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         )}

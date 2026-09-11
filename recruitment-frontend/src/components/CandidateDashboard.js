@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import api from "../api";
 import { Navbar, Toast } from "./SharedUI";
+import ProctoredInterviewModal from "./ProctoredInterviewModal";
 
 function CandidateDashboard() {
   const [darkMode, setDarkMode] = useState(false);
@@ -15,6 +16,8 @@ function CandidateDashboard() {
 
   const [applications, setApplications] = useState([]);
   const [availableJobs, setAvailableJobs] = useState([]);
+  const [interviews, setInterviews] = useState([]);
+  const [activeInterviewSession, setActiveInterviewSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ message: "", type: "success" });
   const [applyingJobId, setApplyingJobId] = useState(null);
@@ -31,10 +34,11 @@ function CandidateDashboard() {
   const fetchCandidateData = useCallback(async () => {
     setLoading(true);
     try {
-      const [userRes, appsRes, jobsRes] = await Promise.all([
+      const [userRes, appsRes, jobsRes, interviewsRes] = await Promise.all([
         api.get("/auth/me").catch(() => ({ data: {} })),
         api.get("/applications").catch(() => ({ data: [] })),
         api.get("/jobs").catch(() => ({ data: [] })),
+        api.get("/interviews/my").catch(() => ({ data: [] })),
       ]);
 
       if (userRes.data) {
@@ -49,6 +53,7 @@ function CandidateDashboard() {
 
       setApplications(appsRes.data || []);
       setAvailableJobs(jobsRes.data || []);
+      setInterviews(interviewsRes.data || []);
     } catch (err) {
       console.error("Error loading candidate data:", err);
       showToast("Could not sync candidate dashboard", "error");
@@ -205,18 +210,19 @@ function CandidateDashboard() {
                         <th className="p-4 font-semibold">Stage</th>
                         <th className="p-4 font-semibold">AI Match / Feedback</th>
                         <th className="p-4 font-semibold">Applied Date</th>
+                        <th className="p-4 font-semibold text-right">ACSS Proctoring</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
                       {loading ? (
                         <tr>
-                          <td colSpan="4" className="p-8 text-center text-slate-400">
+                          <td colSpan="5" className="p-8 text-center text-slate-400">
                             Loading your applications...
                           </td>
                         </tr>
                       ) : applications.length === 0 ? (
                         <tr>
-                          <td colSpan="4" className="p-12 text-center text-slate-400">
+                          <td colSpan="5" className="p-12 text-center text-slate-400">
                             <p className="text-base font-semibold text-slate-600 dark:text-slate-300">No applications yet</p>
                             <p className="text-xs text-slate-400 mt-1">Browse the "Explore Open Jobs" tab to apply to your first role!</p>
                             <button
@@ -231,6 +237,9 @@ function CandidateDashboard() {
                         applications.map((app) => {
                           const jobTitle = app.jobTitle || app.job?.title || "Software Engineer";
                           const company = app.company || app.job?.company?.name || "Apex AI";
+                          const matchingInterview = interviews.find(
+                            (i) => i.application?.id === app.id || i.applicationId === app.id
+                          ) || { id: app.id, applicationId: app.id };
 
                           return (
                             <tr key={app.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors duration-150" style={{ animation: 'staggerUp 0.35s ease both' }}>
@@ -243,6 +252,10 @@ function CandidateDashboard() {
                                   className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
                                     app.status === "Interview Scheduled"
                                       ? "bg-purple-100 text-purple-800 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800"
+                                      : app.status === "In Progress"
+                                      ? "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800 animate-pulse"
+                                      : app.status === "Interview Cancelled (Cheating Detected)"
+                                      ? "bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-300 dark:border-rose-800 font-bold"
                                       : app.status === "Shortlisted"
                                       ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
                                       : app.status === "Accepted"
@@ -276,6 +289,42 @@ function CandidateDashboard() {
                               </td>
                               <td className="p-4 text-xs text-slate-500">
                                 {app.appliedAt ? new Date(app.appliedAt).toLocaleDateString() : "Recently"}
+                              </td>
+                              <td className="p-4 text-right">
+                                {app.status === "Interview Cancelled (Cheating Detected)" ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 font-bold text-xs border border-rose-300">
+                                    🚫 Cheating Flagged
+                                  </span>
+                                ) : app.status === "Assessment Completed" ? (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-bold text-xs border border-emerald-300">
+                                    ✅ Completed
+                                  </span>
+                                ) : app.status === "Interview Scheduled" || app.status === "In Progress" ? (
+                                  <button
+                                    onClick={() =>
+                                      setActiveInterviewSession({
+                                        application: app,
+                                        interview: matchingInterview
+                                      })
+                                    }
+                                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-purple-500/25 flex items-center gap-1.5 ml-auto transition transform hover:scale-105"
+                                  >
+                                    <span>Launch ACSS Room</span>
+                                    <span>🎥</span>
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() =>
+                                      setActiveInterviewSession({
+                                        application: app,
+                                        interview: matchingInterview
+                                      })
+                                    }
+                                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs transition"
+                                  >
+                                    Practice ACSS 🎯
+                                  </button>
+                                )}
                               </td>
                             </tr>
                           );
@@ -466,6 +515,22 @@ function CandidateDashboard() {
             </div>
           )}
         </div>
+
+        {activeInterviewSession && (
+          <ProctoredInterviewModal
+            interview={activeInterviewSession.interview}
+            application={activeInterviewSession.application}
+            onClose={() => setActiveInterviewSession(null)}
+            onSessionUpdated={(newStatus) => {
+              fetchCandidateData();
+              if (newStatus === "cancelled") {
+                showToast("Interview session was auto-cancelled due to anti-cheating violations.", "error");
+              } else if (newStatus === "completed") {
+                showToast("Interview & assessment submitted successfully!", "success");
+              }
+            }}
+          />
+        )}
 
         <Toast message={toast.message} type={toast.type} onClose={() => setToast({ message: "", type: "success" })} />
       </div>

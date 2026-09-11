@@ -25,12 +25,23 @@ public class Interview {
     @Column(columnDefinition = "TEXT")
     private String feedback;
 
+    @Column(nullable = false)
+    private Integer violationsCount = 0;
+
+    @Column(nullable = false)
+    private Boolean flaggedCheating = false;
+
+    @Column(columnDefinition = "TEXT")
+    private String cheatingLogs;
+
     public Interview() {}
 
     public Interview(Application application, String status) {
         this.application = application;
         this.status = status;
         this.scheduledAt = LocalDateTime.now().plusDays(2);
+        this.violationsCount = 0;
+        this.flaggedCheating = false;
     }
 
     public Long getId() {
@@ -71,5 +82,29 @@ public class Interview {
 
     public void setFeedback(String feedback) {
         this.feedback = feedback;
+    }
+
+    public Integer getViolationsCount() {
+        return violationsCount;
+    }
+
+    public void setViolationsCount(Integer violationsCount) {
+        this.violationsCount = violationsCount;
+    }
+
+    public Boolean getFlaggedCheating() {
+        return flaggedCheating;
+    }
+
+    public void setFlaggedCheating(Boolean flaggedCheating) {
+        this.flaggedCheating = flaggedCheating;
+    }
+
+    public String getCheatingLogs() {
+        return cheatingLogs;
+    }
+
+    public void setCheatingLogs(String cheatingLogs) {
+        this.cheatingLogs = cheatingLogs;
     }
 }

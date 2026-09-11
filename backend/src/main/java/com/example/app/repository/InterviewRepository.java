@@ -12,4 +12,6 @@ public interface InterviewRepository extends JpaRepository<Interview, Long> {
     Optional<Interview> findByApplicationId(Long applicationId);
     List<Interview> findByApplicationCandidateUserEmailOrderByScheduledAtAsc(String email);
     List<Interview> findAllByOrderByScheduledAtAsc();
+    List<Interview> findByFlaggedCheatingTrue();
+    List<Interview> findByViolationsCountGreaterThan(Integer minViolations);
 }

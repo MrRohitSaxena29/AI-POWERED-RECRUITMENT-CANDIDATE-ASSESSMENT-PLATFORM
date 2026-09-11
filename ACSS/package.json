@@ -1,0 +1,16 @@
+{
+  "name": "acss-anti-cheating-service",
+  "version": "1.0.0",
+  "description": "Anti-Cheating Surveillance System (ACSS) Microservice for AI Recruitment Platform",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2"
+  }
+}
